@@ -1,14 +1,15 @@
+use parser::connect;
 use serenity::async_trait;
-use serenity::model::channel::Message;
-use serenity::model::voice::VoiceState;
-use serenity::model::gateway::Ready;
-use serenity::model::{guild::Member, user::User};
+use serenity::model::{channel::Message, voice::VoiceState, gateway::Ready, timestamp::Timestamp};
 use serenity::prelude::*;
-use serenity::model::timestamp::Timestamp;
 
+use std::thread;
+use std::env;
+use std::error::Error;
 use std::io::prelude::*;
 use std::fs::File;
 
+mod connections_handler;
 mod parser;
 struct Handler;
 
@@ -41,26 +42,40 @@ impl EventHandler for Handler {
         println!("{} is connected!", ready.user.name);
     }
 
-    async fn voice_state_update(&self, _ctx: Context, _old: Option<VoiceState>, _new: VoiceState) {
-       
-        let server = _new.guild_id.unwrap();
-        let new_chann = _new.channel_id.expect("se fue");
-        let member = _new.member.unwrap();
+    async fn voice_state_update(&self, _ctx: Context, old: Option<VoiceState>, new: VoiceState) {
+
+        if old.is_none() & new.channel_id.is_some() {
+            connections_handler::connect(new);
+        } else if old.is_some() &  new.channel_id.is_none() {
+            connections_handler::disconnect(old.unwrap());  
+        } else if old.is_some() & new.channel_id.is_some() {
+            connections_handler::moved(old.unwrap());
+        }
+
+        /*let serverOld = old.unwrap().guild_id.unwrap();
+
+        let server = new.guild_id.unwrap();
+        let new_chann = new.channel_id.expect("se fue");
+        let member = new.member.unwrap();
         let user = member.user;
         let name = &user.name;
-        let time = Timestamp::now().unix_timestamp();
+        let time = Timestamp::now().unix_timestamp(); 
         
-
+        
+        println!("Antiguo serv: {}", serverOld);
         println!("Actualizacion en {}", server);
         println!("{}, {} se movio a {}", user, name, new_chann);
-        println!("{}", time);
+        println!("{}", time);*/
     }
 }
 
 #[tokio::main]
 async fn main() {
 
-    parser::connect();
+    
+    thread::spawn(|| {
+        connect();
+    }).join().expect("Thread panicked");
     let mut file = File::open(".token").unwrap();
     let mut token = String::new();
     file.read_to_string(&mut token).expect("Token file expected to be within the directory");
@@ -68,6 +83,7 @@ async fn main() {
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::GUILDS
         | GatewayIntents::GUILD_VOICE_STATES;
 
     // Create a new instance of the Client, logging in as a bot. This will

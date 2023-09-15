@@ -1,17 +1,48 @@
-use mongodb::{bson::doc, options::{ClientOptions, ServerApi, ServerApiVersion}, Client};
+use mongodb::{Client, options::{ClientOptions, ResolverConfig}, bson::Document};
+use std::{env, thread};
+use std::error::Error;
+use tokio;
+use mongodb::bson::doc;
 
-pub fn connect() {
-        // Parse a connection string into an options struct.
-    let mut client_options = ClientOptions::parse("mongodb://localhost:27017").await?;
 
-    // Manually set an option.
-    client_options.app_name = Some("My App".to_string());
+#[tokio::main]
+pub async fn connect() -> Result<(), Box<dyn Error>> {
+    // Load the MongoDB connection string from an environment variable:
 
-    // Get a handle to the deployment.
-    let client = Client::with_options(client_options)?;
+    let new_doc = doc! {
+        "userid": 8813,
+        "names": ["prueba", "prueba2"],
+        "totalHours": 32,
+        "servers": [{
+            "server_id": 71112,
+            "server_name": "theQ2",
+            "channels": [{
+                "channel_id": 515231,
+                "channel_name": "sala pubica",
+                "hours": 12
+            }]
+        }]
+    };
+    let client_uri =
+    env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
 
-    // List the names of the databases in that deployment.
-    for db_name in client.list_database_names(None, None).await? {
-        println!("{}", db_name);
-    }
+    let options =
+    ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
+        .await;
+
+    let client = Client::with_options(options.unwrap()).unwrap();
+
+
+    // Print the databases in our MongoDB cluster
+
+    let prueba = client.database("prueba2").collection("prombo");
+    let user: Document = prueba.find_one(
+        doc! {
+            "userid": 8813
+        },
+        None
+    ).await?.unwrap();
+    println!("user: {}", user);
+        
+    Ok(())
 }
