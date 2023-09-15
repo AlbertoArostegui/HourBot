@@ -9,6 +9,7 @@ use serenity::model::timestamp::Timestamp;
 use std::io::prelude::*;
 use std::fs::File;
 
+mod parser;
 struct Handler;
 
 #[async_trait]
@@ -59,6 +60,7 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
 
+    parser::connect();
     let mut file = File::open(".token").unwrap();
     let mut token = String::new();
     file.read_to_string(&mut token).expect("Token file expected to be within the directory");
