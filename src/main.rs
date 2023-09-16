@@ -42,15 +42,17 @@ impl EventHandler for Handler {
         println!("{} is connected!", ready.user.name);
     }
 
-    async fn voice_state_update(&self, _ctx: Context, old: Option<VoiceState>, new: VoiceState) {
+    async fn voice_state_update(&self, ctx: Context, old: Option<VoiceState>, new: VoiceState) {
 
-        if old.is_none() & new.channel_id.is_some() {
-            thread::spawn(|| {
-                connections_handler::connected(new);
+        println!("voice update");
+        if old.is_none() & new.channel_id.is_some() {                                   //New connection
+            println!("new connection to a voice channel");
+            thread::spawn(move || {
+                connections_handler::connected(new, ctx.cache.as_ref());
             }).join().expect("Thread panicked");
-        } else if old.is_some() &  new.channel_id.is_none() {
+        } else if old.is_some() &  new.channel_id.is_none() {                           //Disconnection
             connections_handler::disconnected(old.unwrap());  
-        } else if old.is_some() & new.channel_id.is_some() {
+        } else if old.is_some() & new.channel_id.is_some() {                            //Channel move
             connections_handler::moved(old.unwrap());
         }
 
@@ -74,8 +76,6 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
 
-    
-    
     let mut file = File::open(".token").unwrap();
     let mut token = String::new();
     file.read_to_string(&mut token).expect("Token file expected to be within the directory");
