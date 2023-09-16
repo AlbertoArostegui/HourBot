@@ -9,20 +9,6 @@ use mongodb::bson::doc;
 pub async fn connect() -> Result<(), Box<dyn Error>> {
     // Load the MongoDB connection string from an environment variable:
 
-    let new_doc = doc! {
-        "userid": 8813,
-        "names": ["prueba", "prueba2"],
-        "totalHours": 32,
-        "servers": [{
-            "server_id": 71112,
-            "server_name": "theQ2",
-            "channels": [{
-                "channel_id": 515231,
-                "channel_name": "sala pubica",
-                "hours": 12
-            }]
-        }]
-    };
     let client_uri =
     env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
 
@@ -45,4 +31,24 @@ pub async fn connect() -> Result<(), Box<dyn Error>> {
     println!("user: {}", user);
         
     Ok(())
+}
+
+#[tokio::main]
+pub async fn user_exists(user_id: u64) -> bool {
+    let client_uri =
+    env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
+    let options =
+    ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
+        .await;
+    let client = Client::with_options(options.unwrap()).unwrap();
+
+    let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
+    let exists = db.find_one(
+        doc! {
+            "userid": 8813
+        },
+        None
+    ).await.unwrap().is_some();
+
+    exists
 }

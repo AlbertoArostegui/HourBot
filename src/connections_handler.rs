@@ -1,16 +1,16 @@
 use serenity::model::voice::VoiceState;
+use crate::parser;
 
-
-
-
-pub fn connect(state: VoiceState) {
+pub fn connected(state: VoiceState) {
     let member = state.member.unwrap();
-    let user = member.user.name;
+    let user_id = state.user_id;
 
-    println!("Se ha conectado {}", user);
+    println!("Se ha conectado {}", user_id);
+    let existe = parser::user_exists(user_id.0);
+    println!("existe: {}", existe);
 }
 
-pub fn disconnect(state: VoiceState) {
+pub fn disconnected(state: VoiceState) {
 
 }
 

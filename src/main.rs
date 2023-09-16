@@ -45,9 +45,11 @@ impl EventHandler for Handler {
     async fn voice_state_update(&self, _ctx: Context, old: Option<VoiceState>, new: VoiceState) {
 
         if old.is_none() & new.channel_id.is_some() {
-            connections_handler::connect(new);
+            thread::spawn(|| {
+                connections_handler::connected(new);
+            }).join().expect("Thread panicked");
         } else if old.is_some() &  new.channel_id.is_none() {
-            connections_handler::disconnect(old.unwrap());  
+            connections_handler::disconnected(old.unwrap());  
         } else if old.is_some() & new.channel_id.is_some() {
             connections_handler::moved(old.unwrap());
         }
@@ -73,9 +75,7 @@ impl EventHandler for Handler {
 async fn main() {
 
     
-    thread::spawn(|| {
-        connect();
-    }).join().expect("Thread panicked");
+    
     let mut file = File::open(".token").unwrap();
     let mut token = String::new();
     file.read_to_string(&mut token).expect("Token file expected to be within the directory");
