@@ -10,6 +10,8 @@ pub fn connected(state: VoiceState, cache: &Cache) {
     let member = state.member.unwrap();
     let user_name = member.user.name;
 
+    print!("Voice update at {} \n", parser::make_ts(user_id as i64, channel));
+
     if !parser::user_exists(user_id as i64) {
 
         println!("User {} doesn't exist in the db", user_id);
@@ -17,14 +19,20 @@ pub fn connected(state: VoiceState, cache: &Cache) {
         parser::create_user(user_id, &user_name, &server_name, server_id, channel, cache);
 
     } else if parser::server_exists(user_id as i64, server_id as i64) {
+
+        println!("Server doesn't exist in the db, adding");
         
         parser::insert_new_server(user_id as i64, server_id as i64, &server_name, channel, cache);
 
     } else if parser::channel_exists(user_id as i64, channel) {
 
+        println!("Channel doesn't exist in the db, adding");
+
         parser::insert_new_channel(user_id as i64, server_id as i64, channel, cache);
 
     } else if parser::channel_name_exists(user_id as i64, channel, cache) {
+
+        println!("New channel name detected for this channel id, adding it to the list");
 
         parser::insert_new_channel_name(user_id as i64, server_id as i64, channel, cache);
 

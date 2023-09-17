@@ -22,8 +22,6 @@ pub async fn user_exists(user_id: i64) -> bool {
         None
     ).await.unwrap();
 
-    println!("{}", user_id);
-
     exists.is_some()
 }
 
@@ -123,11 +121,12 @@ pub async fn server_exists(user_id: i64, server_id: i64) -> bool {
 
     let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
 
+    let filter = doc! {"user_id": user_id, "servers.server_id": server_id};
+
+    println!("Checking whether {} exists", filter);
+
     let exists = db.find_one(
-        doc! {
-            "user_id": user_id,
-            "servers.server_id": server_id,
-        }, None).await.unwrap();
+        filter, None).await.unwrap();
 
     exists.is_some()
 
@@ -275,7 +274,9 @@ pub async fn insert_new_channel_name(user_id: i64, server_id: i64, channel: Chan
 
 
 #[tokio::main]
-pub async fn make_ts(user_id: i64, channel_id: i64) {
+pub async fn make_ts(user_id: i64, channel: ChannelId) -> u64 {
+
+    let channel_id = channel.0;
 
     let client_uri =
     env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
@@ -289,11 +290,15 @@ pub async fn make_ts(user_id: i64, channel_id: i64) {
     let start = SystemTime::now();
     let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
+    println!("timestamp at {}", since_the_epoch);
+
     let new_doc = doc! {
         "user_id": user_id,
-        "channel_id": channel_id,
+        "channel_id": channel_id as i64,
         "timestamp": since_the_epoch as i64,
     };
 
     db.insert_one(new_doc, None).await.expect("Couldn't make a timestamp");
+
+    since_the_epoch as u64
 }
