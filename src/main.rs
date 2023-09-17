@@ -1,11 +1,8 @@
-use parser::connect;
 use serenity::async_trait;
-use serenity::model::{channel::Message, voice::VoiceState, gateway::Ready, timestamp::Timestamp};
+use serenity::model::{channel::Message, voice::VoiceState, gateway::Ready};
 use serenity::prelude::*;
 
 use std::thread;
-use std::env;
-use std::error::Error;
 use std::io::prelude::*;
 use std::fs::File;
 

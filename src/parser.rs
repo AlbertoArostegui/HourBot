@@ -1,38 +1,9 @@
 use mongodb::{Client, options::{ClientOptions, ResolverConfig}, bson::Document};
 use serenity::{model::prelude::ChannelId, client::Cache};
 use std::env;
-use std::error::Error;
 use tokio;
 use mongodb::bson::doc;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-#[tokio::main]
-pub async fn connect() -> Result<(), Box<dyn Error>> {
-    // Load the MongoDB connection string from an environment variable:
-
-    let client_uri =
-    env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
-
-    let options =
-    ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
-        .await;
-
-    let client = Client::with_options(options.unwrap()).unwrap();
-
-
-    // Print the databases in our MongoDB cluster
-
-    let prueba = client.database("prueba2").collection("prombo");
-    let user: Document = prueba.find_one(
-        doc! {
-            "userid": 8813
-        },
-        None
-    ).await?.unwrap();
-    println!("user: {}", user);
-        
-    Ok(())
-}
 
 #[tokio::main]
 pub async fn user_exists(user_id: i64) -> bool {
@@ -140,6 +111,62 @@ pub async fn insert_new_user_name(user_id: i64, user_name: &str) {
 }
 
 #[tokio::main]
+pub async fn server_exists(user_id: i64, server_id: i64) -> bool {
+
+
+    let client_uri =
+    env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
+    let options =
+    ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
+        .await;
+    let client = Client::with_options(options.unwrap()).unwrap();
+
+    let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
+
+    let exists = db.find_one(
+        doc! {
+            "user_id": user_id,
+            "servers.server_id": server_id,
+        }, None).await.unwrap();
+
+    exists.is_some()
+
+}
+
+#[tokio::main]
+pub async fn insert_new_server(user_id: i64, server_id: i64, server_name: &str, channel: ChannelId, cache: &Cache) {
+
+    let channel_id = channel.0;
+    let channel_name = channel.name(cache).await;
+
+    let client_uri =
+    env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
+    let options =
+    ClientOptions::parse_with_resolver_config(&client_uri, ResolverConfig::cloudflare())
+        .await;
+    let client = Client::with_options(options.unwrap()).unwrap();
+
+    let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
+
+    let filter = doc! {"user_id": user_id};
+    let update = doc! {
+        "$push": {
+            "servers": doc! {
+                "server_id": server_id,
+                "server_name": server_name,
+                "channels": [ doc! {
+                    "channel_id": channel_id as i64,
+                    "channel_names": [channel_name],
+                    "minutes": 0
+                }]
+            }            
+        }
+    };
+
+    db.update_one(filter, update, None).await.expect("Couldn't insert new server");
+}
+
+#[tokio::main]
 pub async fn channel_exists(user_id: i64, channel: ChannelId) -> bool {
    
     let channel_id = channel.0 as i64;
@@ -180,9 +207,15 @@ pub async fn insert_new_channel(user_id: i64, server_id: i64, channel: ChannelId
     let filter = doc! {"user_id": user_id, "server_id": server_id};
     let update = doc! {
         "$push": {
-            "servers.$.channels": 
+            "servers.$.channels": doc! {
+                "channel_id": channel_id,
+                "channel_names": [channel_name],
+                "minutes": 0
+            }
         }
-    }
+    };
+
+    db.update_one(filter, update, None).await.expect("Couldn't add new channel to the db");
 
 }
 
