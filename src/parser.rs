@@ -1,11 +1,11 @@
-use mongodb::{Client, options::{ClientOptions, ResolverConfig}, bson::Document};
+use mongodb::{Client, options::{ClientOptions, ResolverConfig, FindOneOptions}, bson::Document};
 use serenity::{model::prelude::ChannelId, client::Cache};
 use std::env;
-use tokio;
-use mongodb::bson::doc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
-#[tokio::main]
+use mongodb::bson;
+use mongodb::bson::doc;
+
+
 pub async fn user_exists(user_id: i64) -> bool {
     let client_uri =
     env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
@@ -22,10 +22,12 @@ pub async fn user_exists(user_id: i64) -> bool {
         None
     ).await.unwrap();
 
+    println!("Checking wheter user {} exists", user_id);
+
     exists.is_some()
 }
 
-#[tokio::main]
+
 pub async fn create_user(user_id: u64, user_name: &str, server_name: &str, server_id: u64, channel: ChannelId, cache: &Cache) {
 
     let channel_id = channel.0;
@@ -60,7 +62,7 @@ pub async fn create_user(user_id: u64, user_name: &str, server_name: &str, serve
 
 }
 
-#[tokio::main]
+
 pub async fn user_name_exists(user_id: i64, user_name: &str) -> bool {
 
     let client_uri =
@@ -79,13 +81,13 @@ pub async fn user_name_exists(user_id: i64, user_name: &str) -> bool {
         None
     ).await.unwrap();
 
-    println!("{}", user_id);
+    println!("Checking if {}'s current user name: {} exists", user_id, user_name);
 
     exists.is_some()
 
 }
 
-#[tokio::main]
+
 pub async fn insert_new_user_name(user_id: i64, user_name: &str) {
 
     let client_uri =
@@ -108,7 +110,7 @@ pub async fn insert_new_user_name(user_id: i64, user_name: &str) {
 
 }
 
-#[tokio::main]
+
 pub async fn server_exists(user_id: i64, server_id: i64) -> bool {
 
 
@@ -126,13 +128,13 @@ pub async fn server_exists(user_id: i64, server_id: i64) -> bool {
     println!("Checking whether {} exists", filter);
 
     let exists = db.find_one(
-        filter, None).await.unwrap();
+        Some(filter), None).await.unwrap();
 
     exists.is_some()
 
 }
 
-#[tokio::main]
+
 pub async fn insert_new_server(user_id: i64, server_id: i64, server_name: &str, channel: ChannelId, cache: &Cache) {
 
     let channel_id = channel.0;
@@ -165,7 +167,7 @@ pub async fn insert_new_server(user_id: i64, server_id: i64, server_name: &str, 
     db.update_one(filter, update, None).await.expect("Couldn't insert new server");
 }
 
-#[tokio::main]
+
 pub async fn channel_exists(user_id: i64, channel: ChannelId) -> bool {
    
     let channel_id = channel.0 as i64;
@@ -179,16 +181,17 @@ pub async fn channel_exists(user_id: i64, channel: ChannelId) -> bool {
 
     let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
 
+    println!("Checking whether channel exists");
+
     let exists = db.find_one(
-        doc! {
+        Some(doc! {
             "user_id": user_id,
             "servers.channels.channel_id": channel_id,
-        }, None).await.unwrap();
+        }), None).await.unwrap();
 
     exists.is_some()
 }
 
-#[tokio::main]
 pub async fn insert_new_channel(user_id: i64, server_id: i64, channel: ChannelId, cache: &Cache) {
 
     let channel_id = channel.0 as i64;
@@ -201,24 +204,37 @@ pub async fn insert_new_channel(user_id: i64, server_id: i64, channel: ChannelId
         .await;
     let client = Client::with_options(options.unwrap()).unwrap();
 
+    println!("Attempting to insert new channel in an already existing server");
+
     let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
 
-    let filter = doc! {"user_id": user_id, "server_id": server_id};
+    let filter = doc! {"user_id": user_id, "servers.server_id": server_id};
+
+    println!("Checking whether {} exists", filter);
+
+    let exists = db.find_one(
+        Some(filter), None).await.unwrap();
+
+    if exists.is_some() {
+        println!("Encontrado el documento en el que insertarlo");
+    } else {
+        println!("No se ha encontrado el documento al que pertenece el canal");
+    }
+    let filter = doc! {"user_id": user_id, "servers.server_id": server_id};
+    let new_channel = doc! {"channel_id": channel_id, "channel_names": [channel_name], "minutes": 0};
     let update = doc! {
         "$push": {
-            "servers.$.channels": doc! {
-                "channel_id": channel_id,
-                "channel_names": [channel_name],
-                "minutes": 0
-            }
+            "servers.$.channels": new_channel
         }
     };
 
-    db.update_one(filter, update, None).await.expect("Couldn't add new channel to the db");
+    let result = db.update_one(filter, update, None).await.expect("Couldn't add new channel to the db");
+
+    println!("{} document(s) updated", result.modified_count);
 
 }
 
-#[tokio::main]
+
 pub async fn channel_name_exists(user_id: i64, channel: ChannelId, cache: &Cache) -> bool {
 
     let channel_id = channel.0 as i64;
@@ -233,6 +249,8 @@ pub async fn channel_name_exists(user_id: i64, channel: ChannelId, cache: &Cache
 
     let db: mongodb::Collection<Document> = client.database("prueba2").collection("prombo");
 
+    println!("Checking whether channel name exists");
+
     let exists = db.find_one(
         doc! {
             "user_id": user_id,
@@ -246,7 +264,7 @@ pub async fn channel_name_exists(user_id: i64, channel: ChannelId, cache: &Cache
 
 }
 
-#[tokio::main]
+
 pub async fn insert_new_channel_name(user_id: i64, server_id: i64, channel: ChannelId, cache: &Cache) {
 
     let channel_id = channel.0 as i64;
@@ -273,11 +291,11 @@ pub async fn insert_new_channel_name(user_id: i64, server_id: i64, channel: Chan
 }
 
 
-#[tokio::main]
-pub async fn make_ts(user_id: i64, channel: ChannelId) -> u64 {
 
-    let channel_id = channel.0;
+pub async fn update_seconds(user_id: i64, channel: ChannelId) {
 
+    let channel_id = channel.0 as i64;
+    
     let client_uri =
     env::var("MONGODB_URI").expect("You must set the MONGODB_URI environment var!");
     let options =
@@ -287,18 +305,13 @@ pub async fn make_ts(user_id: i64, channel: ChannelId) -> u64 {
 
     let db: mongodb::Collection<Document> = client.database("temp").collection("user_temps");
 
-    let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let filter = doc! {"user_id": user_id, "servers.channels.channel_id": channel_id};
 
-    println!("timestamp at {}", since_the_epoch);
+    let options = FindOneOptions::builder()
+                    .projection(bson::doc! { "minutes": 1, "_id": 0 })
+                    .build();
 
-    let new_doc = doc! {
-        "user_id": user_id,
-        "channel_id": channel_id as i64,
-        "timestamp": since_the_epoch as i64,
-    };
-
-    db.insert_one(new_doc, None).await.expect("Couldn't make a timestamp");
-
-    since_the_epoch as u64
+    let total_seconds =  db.find_one(filter, Some(options)).await.unwrap().unwrap().get_i64("total_minutos");
+    
+    println!("The total seconds are: {}", total_seconds.unwrap());
 }

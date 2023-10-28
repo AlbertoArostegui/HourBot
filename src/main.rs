@@ -8,6 +8,7 @@ use std::fs::File;
 
 mod connections_handler;
 mod parser;
+mod redis_handler;
 struct Handler;
 
 #[async_trait]
@@ -48,9 +49,9 @@ impl EventHandler for Handler {
                 connections_handler::connected(new, ctx.cache.as_ref());
             }).join().expect("Thread panicked");
         } else if old.is_some() &  new.channel_id.is_none() {                           //Disconnection
-            connections_handler::disconnected(old.unwrap());  
+            connections_handler::disconnected(old.unwrap(), ctx.cache.as_ref()).await;  
         } else if old.is_some() & new.channel_id.is_some() {                            //Channel move
-            connections_handler::moved(old.unwrap());
+            connections_handler::moved(old.unwrap(), ctx.cache.as_ref());
         }
 
         /*let serverOld = old.unwrap().guild_id.unwrap();
