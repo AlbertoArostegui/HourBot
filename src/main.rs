@@ -2,6 +2,7 @@ use serenity::async_trait;
 use serenity::model::{channel::Message, voice::VoiceState, gateway::Ready};
 use serenity::prelude::*;
 
+use std::sync::Arc;
 use std::thread;
 use std::io::prelude::*;
 use std::fs::File;
@@ -45,13 +46,18 @@ impl EventHandler for Handler {
         println!("voice update");
         if old.is_none() & new.channel_id.is_some() {                                   //New connection
             println!("new connection to a voice channel");
-            thread::spawn(move || {
-                connections_handler::connected(new, ctx.cache.as_ref());
-            }).join().expect("Thread panicked");
+            connections_handler::connected(new, ctx.cache.as_ref()).await;
+            
         } else if old.is_some() &  new.channel_id.is_none() {                           //Disconnection
             connections_handler::disconnected(old.unwrap(), ctx.cache.as_ref()).await;  
         } else if old.is_some() & new.channel_id.is_some() {                            //Channel move
-            connections_handler::moved(old.unwrap(), ctx.cache.as_ref());
+            let cache_clone = Arc::clone(&ctx.cache);
+            println!("moved");
+            connections_handler::disconnected(old.unwrap(), ctx.cache.as_ref()).await;
+            connections_handler::connected(new, ctx.cache.as_ref()).await;
+            
+            
+            
         }
 
         /*let serverOld = old.unwrap().guild_id.unwrap();

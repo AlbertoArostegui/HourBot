@@ -4,7 +4,6 @@ use crate::redis_handler;
 use tokio;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[tokio::main]
 pub async fn connected(state: VoiceState, cache: &Cache) {
 
     let mut ts: u64 = 0;
@@ -36,7 +35,7 @@ pub async fn connected(state: VoiceState, cache: &Cache) {
 
         println!("Server doesn't exist in the db, adding");
         
-        parser::insert_new_server(user_id as i64, server_id as i64, &server_name, channel, cache);
+        parser::insert_new_server(user_id as i64, server_id as i64, &server_name, channel, cache).await;
 
     } else if !parser::channel_exists(user_id as i64, channel).await {
 
@@ -61,7 +60,7 @@ pub async fn connected(state: VoiceState, cache: &Cache) {
 
 }
 
-pub async fn disconnected(state: VoiceState, cache: &Cache) {
+pub async fn disconnected(state: VoiceState, _cache: &Cache) {
 
     let mut ts: u64 = 0;
 
@@ -72,16 +71,27 @@ pub async fn disconnected(state: VoiceState, cache: &Cache) {
         }
         Err(_) => println!("SystemTime before UNIX EPOCH!"),
     }
-
+    println!("{}", ts);
 
     let user_id = state.user_id.0;
     let channel = state.channel_id.unwrap();
     
-    parser::update_seconds(user_id as i64, channel).await;
+    parser::update_seconds(user_id as i64, channel, ts).await;
 
 }
 
 pub async fn moved(state: VoiceState, cache: &Cache) {
+
+    let mut ts: u64 = 0;
+
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(n) => {
+            ts = n.as_secs();
+            println!("UNIX timestamp: {}", ts);
+        }
+        Err(_) => println!("SystemTime before UNIX EPOCH!"),
+    }
+    println!("{}", ts);
 
     let user_id = state.user_id.0;
     let channel = state.channel_id.unwrap();
@@ -90,7 +100,7 @@ pub async fn moved(state: VoiceState, cache: &Cache) {
     let member = state.member.unwrap();
     let user_name = member.user.name;
 
-    parser::update_seconds(user_id as i64, channel);
+    parser::update_seconds(user_id as i64, channel, ts).await;
 
     if !parser::channel_exists(user_id as i64, channel).await {
 
@@ -109,5 +119,8 @@ pub async fn moved(state: VoiceState, cache: &Cache) {
         println!("New user name detected for user id {}, adding", user_id);
         parser::insert_new_user_name(user_id as i64, &user_name);
     }
+
+    let mut con = redis_handler::establish_connection().unwrap();
+    redis_handler::insert_ts(&mut con, user_id as i64, ts);
 
 }

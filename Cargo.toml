@@ -8,6 +8,8 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread"] }
 mongodb = "2.6.1"
+bson = "1.2.0"
+futures = "0.3"
 
 [dependencies.serenity]
 default-features = false

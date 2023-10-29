@@ -1,0 +1,12 @@
+services:
+  redis:
+    image: redis:alpine
+    restart: on-failure
+  
+  botdehoras:
+    image: albertoarostegui/botdehoras-v1
+    restart: on-failure
+    depends_on:
+      - redis
+
+  
